@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class CursilloMsInscripcionesApplicationTests {
+class InscripcionesApplicationTests {
 
 	@Test
 	void contextLoads() {
