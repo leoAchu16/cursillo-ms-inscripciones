@@ -1,4 +1,7 @@
 package org.cursillo.inscripciones.repository;
 
-public interface ExamenRepository {
+import org.cursillo.commons.entities.Examenes.Examen;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ExamenRepository extends JpaRepository<Examen, Integer> {
 }
