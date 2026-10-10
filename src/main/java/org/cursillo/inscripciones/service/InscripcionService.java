@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.text.Normalizer;
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ import org.cursillo.inscripciones.mapper.InscripcionMapper;
 import org.cursillo.inscripciones.repository.*;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InscripcionService {
@@ -43,10 +45,9 @@ public class InscripcionService {
 
     @Transactional
     public InscripcionDTO crearInscripcion(InscripcionDTO dto) {
+        log.info("Iniciando creacion de inscripcion para el alumno con ID: {}", dto.getIdAlumno());
 
         // Validaciones basicas
-        if (dto.getIdAlumno() == null)
-            throw new BadRequestException("El alumno es obligatorio.");
         if (dto.getDetallesInscripcion() == null || dto.getDetallesInscripcion().isEmpty())
             throw new BadRequestException("La inscripcion debe tener al menos un detalle.");
 
@@ -63,6 +64,9 @@ public class InscripcionService {
                 .orElseThrow(() -> new NotFoundException("Secretaria no encontrado. Id: " + dto.getIdSecretaria()))
                 : null);
 
+        Integer costoMateria = obtenerCostoConcepto(TipoInscripcion.MATERIA);
+        Integer costoExamen = obtenerCostoConcepto(TipoInscripcion.EXAMEN);
+
         for (int i = 0; i < dto.getDetallesInscripcion().size(); i++) {
             DetallesInscripcionDTO detalleDTO = dto.getDetallesInscripcion().get(i);
             DetallesInscripcion detalle = inscripcion.getDetalles().get(i);
@@ -74,20 +78,24 @@ public class InscripcionService {
                         materiaRepo.findById(detalleDTO.getIdMateria())
                                 .orElseThrow(() -> new BadRequestException(
                                         "No existe una materia con ese id: " + detalleDTO.getIdMateria())));
+                detalleMateria.setCosto(costoMateria);
             } else if (detalle instanceof DetalleExamen detalleExamen) {
                 if (detalleDTO.getIdExamen() == null)
                     throw new BadRequestException("Un detalle tipo EXAMEN requiere idExamen.");
                 detalleExamen.setExamen(examenRepo.findById(detalleDTO.getIdExamen())
                         .orElseThrow(() -> new BadRequestException(
                                 "No existe un examen con ese id: " + detalleDTO.getIdExamen())));
-            } else
-                throw new BadRequestException("Tipo de detalle desconocido.");// maneja el caso en que el detalle no sea
-                                                                              // ni materia ni examen
+                detalleExamen.setCosto(costoExamen);
+            } else // maneja el caso en que el detalle no sea ni materia ni examen
+                throw new BadRequestException("Tipo de detalle desconocido.");
         }
         inscripcion.setFechaInscripcion(LocalDate.now());
-        inscripcion.setEstadoPago(dto.getIdSecretaria() != null ? EstadoPago.PAGADO : EstadoPago.PENDIENTE);
+        inscripcion.setEstadoPago(EstadoPago.PENDIENTE);
         inscripcion.setTotal(inscripcion.getDetalles().stream()
                 .mapToInt(DetallesInscripcion::getCosto).sum());
+        
+        log.debug("Total de inscripcion calculado: {}", inscripcion.getTotal());
+        log.info("Guardando nueva inscripcion en la base de datos.");
 
         return inscripcionMapper.toDto(inscripcionRepo.save(inscripcion));
     }
@@ -99,8 +107,66 @@ public class InscripcionService {
      * @return La inscripción actualizada.
      */
     @Transactional
-    public InscripcionDTO actualizarInscripcion(InscripcionDTO dto) {
-        throw new UnsupportedOperationException("Aun falta implementar.");
+    public InscripcionDTO actualizarInscripcion(Integer id, InscripcionDTO dto) {
+        log.info("Iniciando actualizacion de inscripcion con ID: {}", id);
+
+        // validar que haya detalles en el dto
+        if (dto.getDetallesInscripcion() == null || dto.getDetallesInscripcion().isEmpty())
+            throw new BadRequestException("La inscripcion debe tener al menos un detalle.");
+
+        // obtener inscripcion existente
+        Inscripcion inscripcionExistente = inscripcionRepo.findByIdInscripcionAndActivoTrue(id)
+                .orElseThrow(() -> new NotFoundException("La inscripcion no existe."));
+
+        if (inscripcionExistente.getEstadoPago() == EstadoPago.PAGADO)
+            throw new BusinessException("No se puede modificar una inscripcion pagada.");
+
+        Integer costoMateria = obtenerCostoConcepto(TipoInscripcion.MATERIA);
+        Integer costoExamen = obtenerCostoConcepto(TipoInscripcion.EXAMEN);
+
+        // Limpiamos los detalles actuales para reemplazarlos con los nuevos
+        inscripcionExistente.getDetalles().clear();
+
+        // Mapeamos los nuevos detalles usando el mapper
+        Inscripcion inscripcionTemporal = inscripcionMapper.toEntity(dto);
+        List<DetallesInscripcion> nuevosDetalles = inscripcionTemporal.getDetalles();
+
+        for (int i = 0; i < dto.getDetallesInscripcion().size(); i++) {
+            DetallesInscripcionDTO detalleDTO = dto.getDetallesInscripcion().get(i);
+            DetallesInscripcion detalle = nuevosDetalles.get(i);
+
+            if (detalle instanceof DetalleMateria detalleMateria) {
+                if (detalleDTO.getIdMateria() == null)
+                    throw new BadRequestException("Un detalle tipo MATERIA requiere idMateria");
+                detalleMateria.setMateria(
+                        materiaRepo.findById(detalleDTO.getIdMateria())
+                                .orElseThrow(() -> new BadRequestException(
+                                        "No existe una materia con ese id: " + detalleDTO.getIdMateria())));
+                detalleMateria.setCosto(costoMateria);
+            } else if (detalle instanceof DetalleExamen detalleExamen) {
+                if (detalleDTO.getIdExamen() == null)
+                    throw new BadRequestException("Un detalle tipo EXAMEN requiere idExamen.");
+                detalleExamen.setExamen(examenRepo.findById(detalleDTO.getIdExamen())
+                        .orElseThrow(() -> new BadRequestException(
+                                "No existe un examen con ese id: " + detalleDTO.getIdExamen())));
+                detalleExamen.setCosto(costoExamen);
+            } else {
+                throw new BadRequestException("Tipo de detalle desconocido.");
+            }
+
+            // Relacionamos con la inscripcion existente
+            detalle.setInscripcion(inscripcionExistente);
+            inscripcionExistente.getDetalles().add(detalle);
+        }
+
+        // Recalculamos el total
+        inscripcionExistente.setTotal(inscripcionExistente.getDetalles().stream()
+                .mapToInt(DetallesInscripcion::getCosto).sum());
+        
+        log.debug("Nuevo total de inscripcion calculado: {}", inscripcionExistente.getTotal());
+        log.info("Guardando inscripcion actualizada en la base de datos.");
+
+        return inscripcionMapper.toDto(inscripcionRepo.save(inscripcionExistente));
     }
 
     /**
@@ -111,7 +177,10 @@ public class InscripcionService {
      */
     @Transactional
     public InscripcionDTO obtenerPorId(Integer id) {
-        throw new UnsupportedOperationException("Aun falta implementar.");
+        log.info("Buscando inscripcion por ID: {}", id);
+        Inscripcion inscripcion = inscripcionRepo.findById(id)
+                .orElseThrow(() -> new NotFoundException("Inscripcion no encontrada."));
+        return inscripcionMapper.toDto(inscripcion);
     }
 
     /**
@@ -122,6 +191,7 @@ public class InscripcionService {
      */
     @Transactional
     public Page<InscripcionDTO> listarInscripciones(Pageable pageable) {
+        log.info("Listando inscripciones con paginacion");
         return inscripcionRepo.findAll(pageable).map(inscripcion -> inscripcionMapper.toDto(inscripcion));
     }
 
@@ -132,6 +202,7 @@ public class InscripcionService {
      */
     @Transactional
     public void eliminarInscripcion(Integer id) {
+        log.info("Iniciando eliminacion logica de inscripcion con ID: {}", id);
         Inscripcion existente = inscripcionRepo.findByIdInscripcionAndActivoTrue(id)
                 .orElseThrow(() -> new NotFoundException("Inscripcion no encontrada. Id: " + id));
         existente.setActivo(false);
@@ -148,6 +219,7 @@ public class InscripcionService {
      */
     @Transactional
     public Page<InscripcionDTO> buscar(String nombre, Pageable pageable) {
+        log.info("Buscando inscripciones para alumnos con nombre que contenga: {}", nombre);
         List<Alumno> alumnos = alumnoRepo.findByNombreContaining(nombre);
         if (alumnos.isEmpty())
             throw new NotFoundException("No se encontraron alumnos con el nombre: " + nombre);
@@ -163,13 +235,14 @@ public class InscripcionService {
      * @param tipoInscripcion El tipo de concepto a obtener.
      * @return El concepto encontrado.
      */
-    private Concepto obtenerConcepto(TipoInscripcion tipoInscripcion) {
+    private Integer obtenerCostoConcepto(TipoInscripcion tipoInscripcion) {
         String nombre = switch (tipoInscripcion) {
-            case MATERIA -> "materia";
+            case MATERIA -> "materia"; // o podria ser matricula, depende de como se llame en la bd
             case EXAMEN -> "examen";
         };
-        return conceptoRepo.findByNombre(normalizar(nombre))
+        Concepto concepto = conceptoRepo.findByNombreIgnoreCase(nombre)
                 .orElseThrow(() -> new NotFoundException("No se encontró un concepto con el nombre: " + nombre));
+        return concepto.getMontoBase();
     }
 
     /**
@@ -186,5 +259,4 @@ public class InscripcionService {
                 .replaceAll("\\s+", "") // quita todos los espacios
                 .toLowerCase(Locale.ROOT);
     }
-
 }
