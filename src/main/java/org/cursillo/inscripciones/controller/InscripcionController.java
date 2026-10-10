@@ -14,7 +14,7 @@ import java.net.URI;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/inscripciones")
+@RequestMapping("/inscripciones")
 @RequiredArgsConstructor
 public class InscripcionController {
 
@@ -29,8 +29,8 @@ public class InscripcionController {
     @PostMapping
     public ResponseEntity<InscripcionDTO> create(@RequestBody @Valid InscripcionDTO dto) {
         InscripcionDTO creada = service.crearInscripcion(dto);
-        log.info("POST /api/inscripciones - creando inscripcion");
-        URI location = URI.create("/api/inscripciones/" + creada.getIdInscripcion());
+        log.info("POST /inscripciones - creando inscripcion");
+        URI location = URI.create("/inscripciones/" + creada.getIdInscripcion());
         return ResponseEntity.created(location).body(creada);
     }
 
@@ -45,8 +45,8 @@ public class InscripcionController {
     public ResponseEntity<InscripcionDTO> update(@PathVariable("id") Integer idInscripcion,
             @RequestBody @Valid InscripcionDTO dto) {
         InscripcionDTO actualizado = service.actualizarInscripcion(idInscripcion, dto);
-        log.info("PUT /api/inscripciones/" + idInscripcion + " - actualizando inscripcion");
-        URI location = URI.create("/api/inscripciones/" + actualizado.getIdInscripcion());
+        log.info("PUT /inscripciones/" + idInscripcion + " - actualizando inscripcion");
+        URI location = URI.create("/inscripciones/" + actualizado.getIdInscripcion());
         return ResponseEntity.ok().location(location).body(actualizado);
     }
 
@@ -59,8 +59,8 @@ public class InscripcionController {
     @GetMapping("/{id}")
     public ResponseEntity<InscripcionDTO> getById(@PathVariable("id") Integer idInscripcion) {
         InscripcionDTO inscripcion = service.obtenerPorId(idInscripcion);
-        log.info("GET /api/inscripciones/" + idInscripcion + " - obteniendo inscripcion");
-        URI location = URI.create("/api/inscripciones/" + inscripcion.getIdInscripcion());
+        log.info("GET /inscripciones/" + idInscripcion + " - obteniendo inscripcion");
+        URI location = URI.create("/inscripciones/" + inscripcion.getIdInscripcion());
         return ResponseEntity.ok().location(location).body(inscripcion);
     }
 
@@ -81,7 +81,7 @@ public class InscripcionController {
             page = service.buscar(nombreAlumno, pageable);
         else
             page = service.listarInscripciones(pageable);
-        log.info("GET /api/inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(),
+        log.info("GET /inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(),
                 pageable.getPageSize());
 
         return ResponseEntity.ok(page);
@@ -96,7 +96,7 @@ public class InscripcionController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") Integer idInscripcion) {
         service.eliminarInscripcion(idInscripcion);
-        log.info("DELETE /api/inscripciones/" + idInscripcion + " - eliminando inscripcion");
+        log.info("DELETE /inscripciones/" + idInscripcion + " - eliminando inscripcion");
         return ResponseEntity.noContent().build();
     }
 
