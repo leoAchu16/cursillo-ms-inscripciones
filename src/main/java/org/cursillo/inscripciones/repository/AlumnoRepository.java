@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface AlumnoRepository extends JpaRepository<Alumno, Integer> {
     //esto busca alumnos por nombre
-    List<Alumno> findByNombreContaining(String nombre);
+    List<Alumno> findByNombreContainingIgnoreCase(String nombre);
 }

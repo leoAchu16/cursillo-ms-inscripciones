@@ -220,7 +220,7 @@ public class InscripcionService {
     @Transactional
     public Page<InscripcionDTO> buscar(String nombre, Pageable pageable) {
         log.info("Buscando inscripciones para alumnos con nombre que contenga: {}", nombre);
-        List<Alumno> alumnos = alumnoRepo.findByNombreContaining(nombre);
+        List<Alumno> alumnos = alumnoRepo.findByNombreContainingIgnoreCase(nombre);
         if (alumnos.isEmpty())
             throw new NotFoundException("No se encontraron alumnos con el nombre: " + nombre);
         return inscripcionRepo.findByAlumnoIn(alumnos, pageable)
