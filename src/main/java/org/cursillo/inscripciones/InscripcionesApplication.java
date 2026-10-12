@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 
 @EntityScan("org.cursillo.commons.entities")
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "org.cursillo")
 public class InscripcionesApplication {
 
 	public static void main(String[] args) {
