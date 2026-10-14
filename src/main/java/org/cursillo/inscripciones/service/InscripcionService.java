@@ -190,9 +190,13 @@ public class InscripcionService {
      * @return Una página de inscripciones.
      */
     @Transactional
-    public Page<InscripcionDTO> listarInscripciones(Pageable pageable) {
+    public Page<InscripcionDTO> listarInscripciones(String nombre, Pageable pageable) {
+        if(nombre != null && !nombre.isBlank()) {
+            log.info("Listando inscripciones para alumnos con nombre que contenga: {}", nombre);
+            return buscar(nombre, pageable);
+        }
         log.info("Listando inscripciones con paginacion");
-        return inscripcionRepo.findAll(pageable).map(inscripcion -> inscripcionMapper.toDto(inscripcion));
+        return inscripcionRepo.findAllByActivoTrue(pageable).map(inscripcionMapper::toDto);
     }
 
     /**
@@ -209,6 +213,10 @@ public class InscripcionService {
         inscripcionRepo.save(existente);
     }
 
+
+
+    // funciones auxiliares
+
     /**
      * Busca inscripciones por el nombre de un alumno.
      * 
@@ -217,17 +225,14 @@ public class InscripcionService {
      * @return Una página de inscripciones que coinciden con el criterio de
      *         búsqueda.
      */
-    @Transactional
-    public Page<InscripcionDTO> buscar(String nombre, Pageable pageable) {
+    private Page<InscripcionDTO> buscar(String nombre, Pageable pageable) {
         log.info("Buscando inscripciones para alumnos con nombre que contenga: {}", nombre);
         List<Alumno> alumnos = alumnoRepo.findByNombreContainingIgnoreCase(nombre);
         if (alumnos.isEmpty())
-            throw new NotFoundException("No se encontraron alumnos con el nombre: " + nombre);
-        return inscripcionRepo.findByAlumnoIn(alumnos, pageable)
-                .map(inscripcion -> inscripcionMapper.toDto(inscripcion));
+            return Page.empty(pageable);
+        return inscripcionRepo.findByAlumnoInAndActivoTrue(alumnos, pageable)
+                .map(inscripcionMapper::toDto);
     }
-
-    // funciones aux
 
     /**
      * Obtiene un concepto por su tipo.

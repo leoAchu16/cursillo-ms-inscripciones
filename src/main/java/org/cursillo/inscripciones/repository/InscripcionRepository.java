@@ -1,5 +1,6 @@
 package org.cursillo.inscripciones.repository;
 
+import org.cursillo.commons.dto.InscripcionDTO;
 import org.cursillo.commons.entities.Inscripciones.Inscripcion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.cursillo.commons.entities.Usuarios.Alumno;
@@ -14,5 +15,7 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Intege
     Optional<Inscripcion> findByIdInscripcionAndActivoTrue(Integer idInscripcion);
 
     //esto busca inscripciones de un alumno o alumnos (segun la lista de alumnos) con paginacion
-    Page<Inscripcion> findByAlumnoIn(List<Alumno> alumnos, Pageable pageable);
+    Page<Inscripcion> findByAlumnoInAndActivoTrue(List<Alumno> alumnos, Pageable pageable);
+
+    Page<Inscripcion> findAllByActivoTrue(Pageable pageable);
 }

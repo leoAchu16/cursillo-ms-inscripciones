@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.cursillo.commons.dto.InscripcionDTO;
 import org.cursillo.inscripciones.service.InscripcionService;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -74,15 +75,9 @@ public class InscripcionController {
      */
     @GetMapping
     public ResponseEntity<Page<InscripcionDTO>> getAll(@RequestParam(required = false) String nombreAlumno,
-            Pageable pageable) {
-
-        Page<InscripcionDTO> page;
-        if (nombreAlumno != null && !nombreAlumno.isBlank())
-            page = service.buscar(nombreAlumno, pageable);
-        else
-            page = service.listarInscripciones(pageable);
-        log.info("GET /inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(),
-                pageable.getPageSize());
+            @ParameterObject Pageable pageable) {
+        Page<InscripcionDTO> page = service.listarInscripciones(nombreAlumno, pageable);
+        log.info("GET /inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(), pageable.getPageSize());
 
         return ResponseEntity.ok(page);
     }
