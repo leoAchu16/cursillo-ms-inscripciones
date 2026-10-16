@@ -29,8 +29,8 @@ public class InscripcionController {
      */
     @PostMapping
     public ResponseEntity<InscripcionDTO> create(@RequestBody @Valid InscripcionDTO dto) {
-        InscripcionDTO creada = service.crearInscripcion(dto);
         log.info("POST /inscripciones - creando inscripcion");
+        InscripcionDTO creada = service.crearInscripcion(dto);
         URI location = URI.create("/inscripciones/" + creada.getIdInscripcion());
         return ResponseEntity.created(location).body(creada);
     }
@@ -40,15 +40,14 @@ public class InscripcionController {
      * 
      * @param idInscripcion El ID de la inscripcion a actualizar.
      * @param dto           El DTO con los datos actualizados de la inscripcion.
-     * @return Retorna 201 Created con la inscripcion actualizada.
+     * @return Retorna 200 Created con la inscripcion actualizada.
      */
     @PutMapping("/{id}")
     public ResponseEntity<InscripcionDTO> update(@PathVariable("id") Integer idInscripcion,
             @RequestBody @Valid InscripcionDTO dto) {
-        InscripcionDTO actualizado = service.actualizarInscripcion(idInscripcion, dto);
         log.info("PUT /inscripciones/" + idInscripcion + " - actualizando inscripcion");
-        URI location = URI.create("/inscripciones/" + actualizado.getIdInscripcion());
-        return ResponseEntity.ok().location(location).body(actualizado);
+        InscripcionDTO actualizado = service.actualizarInscripcion(idInscripcion, dto);
+        return ResponseEntity.ok(actualizado);
     }
 
     /**
@@ -59,10 +58,9 @@ public class InscripcionController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<InscripcionDTO> getById(@PathVariable("id") Integer idInscripcion) {
-        InscripcionDTO inscripcion = service.obtenerPorId(idInscripcion);
         log.info("GET /inscripciones/" + idInscripcion + " - obteniendo inscripcion");
-        URI location = URI.create("/inscripciones/" + inscripcion.getIdInscripcion());
-        return ResponseEntity.ok().location(location).body(inscripcion);
+        InscripcionDTO inscripcion = service.obtenerPorId(idInscripcion);
+        return ResponseEntity.ok(inscripcion);
     }
 
     /**
@@ -76,8 +74,9 @@ public class InscripcionController {
     @GetMapping
     public ResponseEntity<Page<InscripcionDTO>> getAll(@RequestParam(required = false) String nombreAlumno,
             @ParameterObject Pageable pageable) {
+        log.info("GET /inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(),
+                pageable.getPageSize());
         Page<InscripcionDTO> page = service.listarInscripciones(nombreAlumno, pageable);
-        log.info("GET /inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(), pageable.getPageSize());
 
         return ResponseEntity.ok(page);
     }
@@ -90,8 +89,8 @@ public class InscripcionController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") Integer idInscripcion) {
-        service.eliminarInscripcion(idInscripcion);
         log.info("DELETE /inscripciones/" + idInscripcion + " - eliminando inscripcion");
+        service.eliminarInscripcion(idInscripcion);
         return ResponseEntity.noContent().build();
     }
 

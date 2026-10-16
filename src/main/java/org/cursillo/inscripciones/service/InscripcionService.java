@@ -10,10 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Locale;
 
 import org.cursillo.inscripciones.exception.BadRequestException;
 import org.cursillo.commons.dto.DetallesInscripcionDTO;
@@ -48,6 +46,8 @@ public class InscripcionService {
         log.info("Iniciando creacion de inscripcion para el alumno con ID: {}", dto.getIdAlumno());
 
         // Validaciones basicas
+        if (dto.getIdAlumno() == null)
+            throw new BadRequestException("La inscripcion debe tener un alumno.");
         if (dto.getDetallesInscripcion() == null || dto.getDetallesInscripcion().isEmpty())
             throw new BadRequestException("La inscripcion debe tener al menos un detalle.");
 
@@ -76,14 +76,14 @@ public class InscripcionService {
                     throw new BadRequestException("Un detalle tipo MATERIA requiere idMateria");
                 detalleMateria.setMateria(
                         materiaRepo.findById(detalleDTO.getIdMateria())
-                                .orElseThrow(() -> new BadRequestException(
+                                .orElseThrow(() -> new NotFoundException(
                                         "No existe una materia con ese id: " + detalleDTO.getIdMateria())));
                 detalleMateria.setCosto(costoMateria);
             } else if (detalle instanceof DetalleExamen detalleExamen) {
                 if (detalleDTO.getIdExamen() == null)
                     throw new BadRequestException("Un detalle tipo EXAMEN requiere idExamen.");
                 detalleExamen.setExamen(examenRepo.findById(detalleDTO.getIdExamen())
-                        .orElseThrow(() -> new BadRequestException(
+                        .orElseThrow(() -> new NotFoundException(
                                 "No existe un examen con ese id: " + detalleDTO.getIdExamen())));
                 detalleExamen.setCosto(costoExamen);
             } else // maneja el caso en que el detalle no sea ni materia ni examen
@@ -93,7 +93,7 @@ public class InscripcionService {
         inscripcion.setEstadoPago(EstadoPago.PENDIENTE);
         inscripcion.setTotal(inscripcion.getDetalles().stream()
                 .mapToInt(DetallesInscripcion::getCosto).sum());
-        
+
         log.debug("Total de inscripcion calculado: {}", inscripcion.getTotal());
         log.info("Guardando nueva inscripcion en la base de datos.");
 
@@ -162,7 +162,7 @@ public class InscripcionService {
         // Recalculamos el total
         inscripcionExistente.setTotal(inscripcionExistente.getDetalles().stream()
                 .mapToInt(DetallesInscripcion::getCosto).sum());
-        
+
         log.debug("Nuevo total de inscripcion calculado: {}", inscripcionExistente.getTotal());
         log.info("Guardando inscripcion actualizada en la base de datos.");
 
@@ -175,10 +175,10 @@ public class InscripcionService {
      * @param id El ID de la inscripción a obtener.
      * @return La inscripción encontrada.
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public InscripcionDTO obtenerPorId(Integer id) {
         log.info("Buscando inscripcion por ID: {}", id);
-        Inscripcion inscripcion = inscripcionRepo.findById(id)
+        Inscripcion inscripcion = inscripcionRepo.findByIdInscripcionAndActivoTrue(id)
                 .orElseThrow(() -> new NotFoundException("Inscripcion no encontrada."));
         return inscripcionMapper.toDto(inscripcion);
     }
@@ -189,11 +189,12 @@ public class InscripcionService {
      * @param pageable La configuración de paginación.
      * @return Una página de inscripciones.
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public Page<InscripcionDTO> listarInscripciones(String nombre, Pageable pageable) {
-        if(nombre != null && !nombre.isBlank()) {
+        if (nombre != null && !nombre.isBlank()) {
             log.info("Listando inscripciones para alumnos con nombre que contenga: {}", nombre);
-            return buscar(nombre, pageable);
+            return inscripcionRepo.findByAlumnoNombreContainingIgnoreCaseAndActivoTrue(nombre, pageable)
+                    .map(inscripcionMapper::toDto);
         }
         log.info("Listando inscripciones con paginacion");
         return inscripcionRepo.findAllByActivoTrue(pageable).map(inscripcionMapper::toDto);
@@ -213,26 +214,7 @@ public class InscripcionService {
         inscripcionRepo.save(existente);
     }
 
-
-
     // funciones auxiliares
-
-    /**
-     * Busca inscripciones por el nombre de un alumno.
-     * 
-     * @param nombre   El nombre del alumno a buscar.
-     * @param pageable La configuración de paginación.
-     * @return Una página de inscripciones que coinciden con el criterio de
-     *         búsqueda.
-     */
-    private Page<InscripcionDTO> buscar(String nombre, Pageable pageable) {
-        log.info("Buscando inscripciones para alumnos con nombre que contenga: {}", nombre);
-        List<Alumno> alumnos = alumnoRepo.findByNombreContainingIgnoreCase(nombre);
-        if (alumnos.isEmpty())
-            return Page.empty(pageable);
-        return inscripcionRepo.findByAlumnoInAndActivoTrue(alumnos, pageable)
-                .map(inscripcionMapper::toDto);
-    }
 
     /**
      * Obtiene un concepto por su tipo.
@@ -250,18 +232,4 @@ public class InscripcionService {
         return concepto.getMontoBase();
     }
 
-    /**
-     * Normaliza un string para que pueda ser comparado con otro.
-     * 
-     * @param s El string a normalizar.
-     * @return El string normalizado.
-     */
-    private String normalizar(String s) {
-        if (s == null)
-            return null;
-        return Normalizer.normalize(s, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "") // quita acentos
-                .replaceAll("\\s+", "") // quita todos los espacios
-                .toLowerCase(Locale.ROOT);
-    }
 }
