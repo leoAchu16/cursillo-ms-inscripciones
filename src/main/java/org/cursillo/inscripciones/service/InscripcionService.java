@@ -43,7 +43,7 @@ public class InscripcionService {
 
     @Transactional
     public InscripcionDTO crearInscripcion(InscripcionDTO dto) {
-        log.info("Iniciando creacion de inscripcion para el alumno con ID: {}", dto.getIdAlumno());
+        log.debug("Iniciando creacion de inscripcion para el alumno con ID: {}", dto.getIdAlumno());
 
         // Validaciones basicas
         if (dto.getIdAlumno() == null)
@@ -95,7 +95,7 @@ public class InscripcionService {
                 .mapToInt(DetallesInscripcion::getCosto).sum());
 
         log.debug("Total de inscripcion calculado: {}", inscripcion.getTotal());
-        log.info("Guardando nueva inscripcion en la base de datos.");
+        log.debug("Guardando nueva inscripcion en la base de datos.");
 
         return inscripcionMapper.toDto(inscripcionRepo.save(inscripcion));
     }
@@ -108,7 +108,7 @@ public class InscripcionService {
      */
     @Transactional
     public InscripcionDTO actualizarInscripcion(Integer id, InscripcionDTO dto) {
-        log.info("Iniciando actualizacion de inscripcion con ID: {}", id);
+        log.debug("Iniciando actualizacion de inscripcion con ID: {}", id);
 
         // validar que haya detalles en el dto
         if (dto.getDetallesInscripcion() == null || dto.getDetallesInscripcion().isEmpty())
@@ -164,7 +164,7 @@ public class InscripcionService {
                 .mapToInt(DetallesInscripcion::getCosto).sum());
 
         log.debug("Nuevo total de inscripcion calculado: {}", inscripcionExistente.getTotal());
-        log.info("Guardando inscripcion actualizada en la base de datos.");
+        log.debug("Guardando inscripcion actualizada en la base de datos.");
 
         return inscripcionMapper.toDto(inscripcionRepo.save(inscripcionExistente));
     }
@@ -177,7 +177,7 @@ public class InscripcionService {
      */
     @Transactional(readOnly = true)
     public InscripcionDTO obtenerPorId(Integer id) {
-        log.info("Buscando inscripcion por ID: {}", id);
+        log.debug("Buscando inscripcion por ID: {}", id);
         Inscripcion inscripcion = inscripcionRepo.findByIdInscripcionAndActivoTrue(id)
                 .orElseThrow(() -> new NotFoundException("Inscripcion no encontrada."));
         return inscripcionMapper.toDto(inscripcion);
@@ -192,11 +192,11 @@ public class InscripcionService {
     @Transactional(readOnly = true)
     public Page<InscripcionDTO> listarInscripciones(String nombre, Pageable pageable) {
         if (nombre != null && !nombre.isBlank()) {
-            log.info("Listando inscripciones para alumnos con nombre que contenga: {}", nombre);
+            log.debug("Listando inscripciones para alumnos con nombre que contenga: {}", nombre);
             return inscripcionRepo.findByAlumnoNombreContainingIgnoreCaseAndActivoTrue(nombre, pageable)
                     .map(inscripcionMapper::toDto);
         }
-        log.info("Listando inscripciones con paginacion");
+        log.debug("Listando inscripciones con paginacion");
         return inscripcionRepo.findAllByActivoTrue(pageable).map(inscripcionMapper::toDto);
     }
 
@@ -207,7 +207,7 @@ public class InscripcionService {
      */
     @Transactional
     public void eliminarInscripcion(Integer id) {
-        log.info("Iniciando eliminacion logica de inscripcion con ID: {}", id);
+        log.debug("Iniciando eliminacion logica de inscripcion con ID: {}", id);
         Inscripcion existente = inscripcionRepo.findByIdInscripcionAndActivoTrue(id)
                 .orElseThrow(() -> new NotFoundException("Inscripcion no encontrada. Id: " + id));
         existente.setActivo(false);

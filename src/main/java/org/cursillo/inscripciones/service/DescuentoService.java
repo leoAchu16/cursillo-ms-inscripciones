@@ -31,7 +31,7 @@ public class DescuentoService {
     @Transactional
     public DescuentoDTO crearDescuento(DescuentoDTO dto) {
         validarDescuento(dto);
-        log.info("Creando descuento...");
+        log.debug("Creando descuento...");
         Descuento descuento = descuentoMapper.toEntity(dto);
         return descuentoMapper.toDto(descuentoRepo.save(descuento));
     }
@@ -45,7 +45,7 @@ public class DescuentoService {
      */
     @Transactional
     public DescuentoDTO actualizarDescuento(Integer id, DescuentoDTO dto) {
-        log.info("Actualizando descuento con id: {}", id);
+        log.debug("Actualizando descuento con id: {}", id);
         Descuento descuento = descuentoRepo.findByIdDescuentoAndActivoTrue(id)
                 .orElseThrow(() -> new NotFoundException("Descuento no encontrado"));
 
@@ -64,7 +64,7 @@ public class DescuentoService {
      */
     @Transactional
     public DescuentoDTO obtenerDescuentoPorId(Integer id) {
-        log.info("Obteniendo descuento con id: {}", id);
+        log.debug("Obteniendo descuento con id: {}", id);
         Descuento descuento = descuentoRepo.findByIdDescuentoAndActivoTrue(id)
                 .orElseThrow(() -> new NotFoundException("Descuento no encontrado."));
         return descuentoMapper.toDto(descuento);
@@ -79,7 +79,7 @@ public class DescuentoService {
     @Transactional
     public Page<DescuentoDTO> listarDescuentos(String nombreDescuento, Pageable pageable) {
         if (nombreDescuento == null || nombreDescuento.isEmpty()) {
-            log.info("Listando todos los descuentos con paginacion...");
+            log.debug("Listando todos los descuentos con paginacion...");
             return descuentoRepo.findByActivoTrue(pageable)
                     .map(descuentoMapper::toDto);
         } else {
@@ -94,7 +94,7 @@ public class DescuentoService {
      */
     @Transactional
     public void eliminarDescuento(Integer id) {
-        log.info("Eliminando descuento con id: {}", id);
+        log.debug("Eliminando descuento con id: {}", id);
         Descuento descuento = descuentoRepo.findByIdDescuentoAndActivoTrue(id)
                 .orElseThrow(() -> new NotFoundException("Descuento no encontrado"));
 
@@ -105,7 +105,7 @@ public class DescuentoService {
     // funciones auxiliares
 
     private Page<DescuentoDTO> buscarPorNombre(String nombreDescuento, Pageable pageable) {
-        log.info("Buscando descuentos por nombre: {}", nombreDescuento);
+        log.debug("Buscando descuentos por nombre: {}", nombreDescuento);
         return descuentoRepo.findByNombreContainingIgnoreCaseAndActivoTrue(nombreDescuento, pageable)
                 .map(descuentoMapper::toDto);
     }
