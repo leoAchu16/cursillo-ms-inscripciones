@@ -43,8 +43,7 @@ public class InscripcionController {
      * @return Retorna 200 Created con la inscripcion actualizada.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<InscripcionDTO> update(@PathVariable("id") Integer idInscripcion,
-            @RequestBody @Valid InscripcionDTO dto) {
+    public ResponseEntity<InscripcionDTO> update(@PathVariable("id") Integer idInscripcion, @RequestBody @Valid InscripcionDTO dto) {
         log.info("PUT /inscripciones/" + idInscripcion + " - actualizando inscripcion");
         InscripcionDTO actualizado = service.actualizarInscripcion(idInscripcion, dto);
         return ResponseEntity.ok(actualizado);
@@ -72,10 +71,8 @@ public class InscripcionController {
      * @return Retorna 200 OK con una pagina de inscripciones.
      */
     @GetMapping
-    public ResponseEntity<Page<InscripcionDTO>> getAll(@RequestParam(required = false) String nombreAlumno,
-            @ParameterObject Pageable pageable) {
-        log.info("GET /inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(),
-                pageable.getPageSize());
+    public ResponseEntity<Page<InscripcionDTO>> getAll(@RequestParam(required = false) String nombreAlumno, @ParameterObject Pageable pageable) {
+        log.info("GET /inscripciones - listando inscripciones (pagina: {}, tamaño: {})", pageable.getPageNumber(), pageable.getPageSize());
         Page<InscripcionDTO> page = service.listarInscripciones(nombreAlumno, pageable);
 
         return ResponseEntity.ok(page);

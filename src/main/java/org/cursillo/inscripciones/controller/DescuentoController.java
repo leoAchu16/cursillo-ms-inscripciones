@@ -30,8 +30,8 @@ public class DescuentoController {
      */
     @PostMapping
     public ResponseEntity<DescuentoDTO> create(@RequestBody @Valid DescuentoDTO dto) {
-        DescuentoDTO creada = service.crearDescuento(dto);
         log.info("POST /descuentos - creando descuento");
+        DescuentoDTO creada = service.crearDescuento(dto);
         URI location = URI.create("/descuentos/" + creada.getIdDescuento());
         return ResponseEntity.created(location).body(creada);
     }
@@ -45,8 +45,8 @@ public class DescuentoController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<DescuentoDTO> update(@PathVariable Integer id, @RequestBody @Valid DescuentoDTO dto) {
-        DescuentoDTO actualizado = service.actualizarDescuento(id, dto);
         log.info("PUT /descuentos/{} - actualizando descuento", id);
+        DescuentoDTO actualizado = service.actualizarDescuento(id, dto);
         return ResponseEntity.ok(actualizado);
     }
 
@@ -58,10 +58,9 @@ public class DescuentoController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<DescuentoDTO> getById(@PathVariable Integer id) {
-        DescuentoDTO descuento = service.obtenerDescuentoPorId(id);
         log.info("GET /descuentos/{} - obteniendo descuento", id);
-        URI location = URI.create("/descuentos/" + descuento.getIdDescuento());
-        return ResponseEntity.ok().location(location).body(descuento);
+        DescuentoDTO descuento = service.obtenerDescuentoPorId(id);
+        return ResponseEntity.ok(descuento);
     }
 
     /**
@@ -73,16 +72,15 @@ public class DescuentoController {
     @GetMapping
     public ResponseEntity<Page<DescuentoDTO>> getAll(@RequestParam(required = false) String nombreDescuento,
             @ParameterObject Pageable pageable) {
+        log.info("GET /descuentos - listando descuentos (pagina: {}, tamanho: {})", pageable.getPageNumber(), pageable.getPageSize());
         Page<DescuentoDTO> page = service.listarDescuentos(nombreDescuento, pageable);
-        log.info("GET /descuentos - listando descuentos (pagina: {}, tamaño: {})", pageable.getPageNumber(),
-                pageable.getPageSize());
         return ResponseEntity.ok(page);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
-        service.eliminarDescuento(id);
         log.info("DELETE /descuentos/{} - eliminando descuento", id);
+        service.eliminarDescuento(id);
         return ResponseEntity.noContent().build();
     }
 }
