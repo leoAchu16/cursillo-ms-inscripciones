@@ -3,6 +3,7 @@ package org.cursillo.inscripciones.service;
 import org.cursillo.commons.entities.Conceptos.Concepto;
 import org.cursillo.commons.entities.Enums.TipoInscripcion;
 import org.cursillo.commons.entities.Usuarios.Alumno;
+import org.cursillo.commons.entities.descuentos.Descuento;
 import org.cursillo.inscripciones.exception.NotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +41,7 @@ public class InscripcionService {
     private final SecretariaRepository secretariaRepo;
 
     private final ConceptoRepository conceptoRepo;
+    private final DescuentoRepository descuentoRepo;
 
     @Transactional
     public InscripcionDTO crearInscripcion(InscripcionDTO dto) {
@@ -78,21 +80,36 @@ public class InscripcionService {
                         materiaRepo.findById(detalleDTO.getIdMateria())
                                 .orElseThrow(() -> new NotFoundException(
                                         "No existe una materia con ese id: " + detalleDTO.getIdMateria())));
-                detalleMateria.setCosto(costoMateria);
+                Integer costoFinal = (detalleDTO.getCosto() != null) ? detalleDTO.getCosto() : costoMateria;
+                if (costoFinal < 0)
+                    throw new BadRequestException("El costo no puede ser negativo.");
+                detalleMateria.setCosto(costoFinal);
+
             } else if (detalle instanceof DetalleExamen detalleExamen) {
                 if (detalleDTO.getIdExamen() == null)
                     throw new BadRequestException("Un detalle tipo EXAMEN requiere idExamen.");
                 detalleExamen.setExamen(examenRepo.findById(detalleDTO.getIdExamen())
                         .orElseThrow(() -> new NotFoundException(
                                 "No existe un examen con ese id: " + detalleDTO.getIdExamen())));
-                detalleExamen.setCosto(costoExamen);
+                Integer costoFinal = (detalleDTO.getCosto() != null) ? detalleDTO.getCosto() : costoExamen;
+                if (costoFinal < 0)
+                    throw new BadRequestException("El costo no puede ser negativo.");
+                detalleExamen.setCosto(costoFinal);
             } else // maneja el caso en que el detalle no sea ni materia ni examen
                 throw new BadRequestException("Tipo de detalle desconocido.");
         }
+
+        Descuento descuento = null;
+        if (dto.getIdDescuento() != null)
+            descuento = descuentoRepo.findById(dto.getIdDescuento())
+                    .orElseThrow(
+                            () -> new NotFoundException("No existe un descuento con ese id: " + dto.getIdDescuento()));
+
+        inscripcion.setDescuento(descuento);
+
         inscripcion.setFechaInscripcion(LocalDate.now());
         inscripcion.setEstadoPago(EstadoPago.PENDIENTE);
-        inscripcion.setTotal(inscripcion.getDetalles().stream()
-                .mapToInt(DetallesInscripcion::getCosto).sum());
+        inscripcion.setTotal(calcularTotal(inscripcion.getDetalles(), descuento));
 
         log.debug("Total de inscripcion calculado: {}", inscripcion.getTotal());
         log.debug("Guardando nueva inscripcion en la base de datos.");
@@ -140,16 +157,22 @@ public class InscripcionService {
                     throw new BadRequestException("Un detalle tipo MATERIA requiere idMateria");
                 detalleMateria.setMateria(
                         materiaRepo.findById(detalleDTO.getIdMateria())
-                                .orElseThrow(() -> new BadRequestException(
+                                .orElseThrow(() -> new NotFoundException(
                                         "No existe una materia con ese id: " + detalleDTO.getIdMateria())));
-                detalleMateria.setCosto(costoMateria);
+                Integer costoFinal = (detalleDTO.getCosto() != null) ? detalleDTO.getCosto() : costoMateria;
+                if (costoFinal < 0)
+                    throw new BadRequestException("El costo no puede ser negativo.");
+                detalleMateria.setCosto(costoFinal);
             } else if (detalle instanceof DetalleExamen detalleExamen) {
                 if (detalleDTO.getIdExamen() == null)
                     throw new BadRequestException("Un detalle tipo EXAMEN requiere idExamen.");
                 detalleExamen.setExamen(examenRepo.findById(detalleDTO.getIdExamen())
-                        .orElseThrow(() -> new BadRequestException(
+                        .orElseThrow(() -> new NotFoundException(
                                 "No existe un examen con ese id: " + detalleDTO.getIdExamen())));
-                detalleExamen.setCosto(costoExamen);
+                Integer costoFinal = (detalleDTO.getCosto() != null) ? detalleDTO.getCosto() : costoExamen;
+                if (costoFinal < 0)
+                    throw new BadRequestException("El costo no puede ser negativo.");
+                detalleExamen.setCosto(costoFinal);
             } else {
                 throw new BadRequestException("Tipo de detalle desconocido.");
             }
@@ -159,9 +182,16 @@ public class InscripcionService {
             inscripcionExistente.getDetalles().add(detalle);
         }
 
+        Descuento descuento = null;
+        if (dto.getIdDescuento() != null)
+            descuento = descuentoRepo.findById(dto.getIdDescuento())
+                    .orElseThrow(
+                            () -> new NotFoundException("No existe un descuento con ese id: " + dto.getIdDescuento()));
+
+        inscripcionExistente.setDescuento(descuento);
+
         // Recalculamos el total
-        inscripcionExistente.setTotal(inscripcionExistente.getDetalles().stream()
-                .mapToInt(DetallesInscripcion::getCosto).sum());
+        inscripcionExistente.setTotal(calcularTotal(inscripcionExistente.getDetalles(), descuento));
 
         log.debug("Nuevo total de inscripcion calculado: {}", inscripcionExistente.getTotal());
         log.debug("Guardando inscripcion actualizada en la base de datos.");
@@ -230,6 +260,24 @@ public class InscripcionService {
         Concepto concepto = conceptoRepo.findByNombreIgnoreCase(nombre)
                 .orElseThrow(() -> new NotFoundException("No se encontró un concepto con el nombre: " + nombre));
         return concepto.getMontoBase();
+    }
+
+    /**
+     * Calcula el monto total de una inscripción aplicando el descuento si existe.
+     * 
+     * @param detalles  Lista de detalles de la inscripción.
+     * @param descuento Entidad de descuento (opcional).
+     * @return El total final calculado.
+     */
+    private int calcularTotal(List<DetallesInscripcion> detalles, Descuento descuento) {
+        int subtotal = detalles.stream()
+                .mapToInt(DetallesInscripcion::getCosto)
+                .sum();
+        if (descuento != null && descuento.getPorcentaje() != null && descuento.getPorcentaje() > 0) {
+            int montoDescuento = (subtotal * descuento.getPorcentaje()) / 100;
+            return Math.max(0, subtotal - montoDescuento);
+        }
+        return subtotal;
     }
 
 }
